@@ -1,38 +1,142 @@
 # driftward_data
 
-## Getting started
+A Dagster project for SBA loan data pipelines with BigQuery integration.
 
-### Installing dependencies
+## Getting Started
 
-Ensure [`uv`](https://docs.astral.sh/uv/) is installed following their [official documentation](https://docs.astral.sh/uv/getting-started/installation/).
+### Prerequisites
 
-Create a virtual environment, and install the required dependencies using _sync_:
+- Python 3.10-3.13
+- [uv](https://docs.astral.sh/uv/) package manager
+- Google Cloud credentials configured for BigQuery access
 
+### Installation
+
+1. Install `uv` following their [official documentation](https://docs.astral.sh/uv/getting-started/installation/)
+
+2. Clone the repository and navigate to the project directory
+
+3. Create virtual environment and install dependencies:
 ```bash
 uv sync
 ```
 
-Then, activate the virtual environment:
+4. Activate the virtual environment:
 
 | OS | Command |
 | --- | --- |
-| MacOS | ```source .venv/bin/activate``` |
-| Windows | ```.venv\Scripts\activate``` |
+| MacOS/Linux | `source .venv/bin/activate` |
+| Windows | `.venv\Scripts\activate` |
+
+5. Verify setup:
+```bash
+dg check defs
+```
 
 ### Running Dagster
 
 Start the Dagster UI web server:
-
 ```bash
 dg dev
 ```
 
-Open http://localhost:3000 in your browser to see the project.
+Open http://localhost:3000 in your browser.
 
-## Learn more
+## Project Structure
 
-To learn more about this template and Dagster in general:
+```
+src/driftward_data/
+├── definitions.py          # Main entry point (auto-discovers defs/)
+└── defs/
+    ├── __init__.py
+    ├── assets.py           # Asset definitions
+    └── resources.py        # Resource definitions (BigQuery, etc.)
+```
+
+This project uses `load_from_defs_folder` for automatic discovery - no manual registration needed.
+
+## Development Guide
+
+### Adding New Assets
+
+Create assets in `src/driftward_data/defs/assets.py`:
+
+```python
+from dagster import asset
+from dagster_gcp import BigQueryResource
+import pandas as pd
+
+@asset
+def my_new_asset(bigquery: BigQueryResource) -> pd.DataFrame:
+    """Description of what this asset does."""
+    query = "SELECT * FROM my_table LIMIT 100"
+    with bigquery.get_client() as client:
+        return client.query(query).to_dataframe()
+```
+
+The asset is automatically discovered - no changes to `definitions.py` required.
+
+### Adding New Resources
+
+Update `src/driftward_data/defs/resources.py`:
+
+```python
+import dagster as dg
+from dagster_gcp import BigQueryResource
+
+@dg.definitions
+def resources() -> dg.Definitions:
+    return dg.Definitions(
+        resources={
+            "bigquery": BigQueryResource(project="your-project-id"),
+            # Add new resources here:
+            "new_resource": NewResourceClass(...),
+        }
+    )
+```
+
+Resources are injected into assets by matching parameter names to resource keys.
+
+Reference: [Dagster Resources Documentation](https://docs.dagster.io/dagster-basics-tutorial/resources)
+
+## Common Commands
+
+| Command | Description |
+| --- | --- |
+| `dg dev` | Start local Dagster UI server |
+| `dg check defs` | Validate all definitions |
+| `dg list defs` | List all assets and resources |
+| `dg scaffold defs dagster.asset <path>` | Scaffold a new asset |
+| `dagster run list` | List recent runs |
+| `dagster run logs <RUN_ID>` | View logs for a specific run |
+
+## Troubleshooting
+
+### Resource not found error
+Ensure the parameter name in your asset matches the key in `resources.py`:
+```python
+# In resources.py
+resources={"bigquery": BigQueryResource(...)}
+
+# In assets.py - parameter name must match
+def my_asset(bigquery: BigQueryResource):  # ✅ Matches "bigquery" key
+```
+
+### Definition validation fails
+Run with verbose output:
+```bash
+dg check defs --verbose
+```
+
+### BigQuery authentication issues
+Ensure Google Cloud credentials are configured:
+```bash
+gcloud auth application-default login
+```
+
+## Learn More
 
 - [Dagster Documentation](https://docs.dagster.io/)
 - [Dagster University](https://courses.dagster.io/)
 - [Dagster Slack Community](https://dagster.io/slack)
+- [dg CLI Documentation](https://docs.dagster.io/guides/dg)

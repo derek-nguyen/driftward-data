@@ -1,6 +1,13 @@
+import dagster as dg
 from dagster_gcp import BigQueryResource
 
 
-bigquery = BigQueryResource(
-    project="learned-mind-476504-i3",
-)
+@dg.definitions
+def resources() -> dg.Definitions:
+    return dg.Definitions(
+        resources={
+            "bigquery": BigQueryResource(
+                project="learned-mind-476504-i3",
+            )
+        }
+    )
