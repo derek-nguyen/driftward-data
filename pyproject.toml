@@ -8,6 +8,7 @@ dependencies = [
     "dagster-gcp>=0.28.2",
     "dagster-webserver>=1.12.2",
     "pandas>=2.3.3",
+    "requests>=2.31.0",
 ]
 
 [dependency-groups]

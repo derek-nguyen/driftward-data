@@ -551,6 +551,7 @@ dependencies = [
     { name = "dagster-gcp" },
     { name = "dagster-webserver" },
     { name = "pandas" },
+    { name = "requests" },
 ]
 
 [package.dev-dependencies]
@@ -566,6 +567,7 @@ requires-dist = [
     { name = "dagster-gcp", specifier = ">=0.28.2" },
     { name = "dagster-webserver", specifier = ">=1.12.2" },
     { name = "pandas", specifier = ">=2.3.3" },
+    { name = "requests", specifier = ">=2.31.0" },
 ]
 
 [package.metadata.requires-dev]
