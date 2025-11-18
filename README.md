@@ -53,21 +53,62 @@ This project uses `load_from_defs_folder` for automatic discovery - no manual re
 
 ## Development Guide
 
+### Asset Naming Conventions
+
+Follow these naming conventions for data warehouse layers:
+
+| Prefix | Layer | Purpose | Example |
+| --- | --- | --- | --- |
+| `raw_` | Raw/Bronze | Direct from source, minimal transformation | `raw_sba_foia_7a_loans` |
+| `stg_` | Staging/Silver | Cleaned, typed, validated | `stg_sba_foia_7a_loans` |
+| `fct_` | Fact | Transactional/event data with business logic | `fct_sba_loans` |
+| `dim_` | Dimension | Entity/lookup tables | `dim_sba_lenders` |
+| `agg_` | Aggregate | Pre-aggregated metrics | `agg_sba_loans_by_state` |
+| `mart_` | Data Mart | Business-facing denormalized tables | `mart_sba_loan_analytics` |
+
+**Naming Pattern:**
+- Use `_` (underscore) to separate words within a name
+- Asset names should be descriptive and indicate the data layer
+- Example: `raw_sba_foia_7a_loans` → BigQuery table `sba_loans.raw_sba_foia_7a_loans`
+
+**Example Pipeline:**
+```
+sba_foia_raw (GCS upload)
+    ↓
+raw_sba_foia_7a_loans (raw CSV → BigQuery)
+    ↓
+stg_sba_loans (cleaned & validated)
+    ↓
+fct_sba_loans (enriched fact table)
+```
+
 ### Adding New Assets
 
 Create assets in `src/driftward_data/defs/assets.py`:
 
 ```python
-from dagster import asset
+import dagster as dg
 from dagster_gcp import BigQueryResource
 import pandas as pd
 
-@asset
-def my_new_asset(bigquery: BigQueryResource) -> pd.DataFrame:
-    """Description of what this asset does."""
-    query = "SELECT * FROM my_table LIMIT 100"
+@dg.asset
+def raw_my_data_table(
+    context: dg.AssetExecutionContext,
+    bigquery: BigQueryResource
+) -> None:
+    """Load raw data from source to BigQuery.
+
+    BigQuery table: my_dataset.raw_my_data_table
+    """
+    query = "SELECT * FROM source_table"
     with bigquery.get_client() as client:
-        return client.query(query).to_dataframe()
+        # ... load logic ...
+
+    # Add profiling metadata (convert numpy/pandas types to Python types!)
+    context.add_output_metadata({
+        "total_rows": dg.MetadataValue.int(int(row_count)),
+        "data_quality_null_percentage": dg.MetadataValue.float(float(null_pct)),
+    })
 ```
 
 The asset is automatically discovered - no changes to `definitions.py` required.
@@ -148,6 +189,73 @@ def simple_transform(bigquery: BigQueryResource) -> pd.DataFrame:
 - `context.log` - Logger instance for this run
 
 Reference: [AssetExecutionContext Documentation](https://docs.dagster.io/concepts/assets/software-defined-assets#assetexecutioncontext)
+
+### Data Profiling Best Practices
+
+Add comprehensive profiling metadata to your assets for better observability:
+
+**Essential Metadata Types:**
+```python
+dg.MetadataValue.int()     # Row counts, column counts
+dg.MetadataValue.float()   # Statistics, percentages
+dg.MetadataValue.text()    # Simple strings (table names, dates)
+dg.MetadataValue.md()      # Formatted markdown (distributions, lists)
+```
+
+**Important: Type Conversion**
+
+Always convert numpy/pandas types to Python native types:
+
+```python
+# ❌ WRONG - Will cause SerializationError
+total_rows = len(df)  # numpy.int64
+null_pct = round(pct, 2)  # numpy.float64
+
+# ✅ CORRECT - Convert to Python types
+total_rows = int(len(df))
+null_pct = float(round(pct, 2))
+total_amount = float(df['amount'].sum())
+
+# For distributions
+state_dist = {str(k): int(v) for k, v in df['state'].value_counts().items()}
+```
+
+**Recommended Profiling Metrics:**
+
+1. **Volume**: Total rows, columns, file counts
+2. **Data Quality**: Null percentages, key column null counts
+3. **Temporal**: Date ranges (min/max), as-of dates
+4. **Statistics**: Min/max/mean/median for numeric columns
+5. **Distributions**: Top N categories, status distributions
+
+**Example:**
+```python
+context.add_output_metadata({
+    # Volume
+    "total_rows": dg.MetadataValue.int(int(len(df))),
+    "total_columns": dg.MetadataValue.int(len(df.columns)),
+
+    # Quality
+    "data_quality_null_percentage": dg.MetadataValue.float(float(null_pct)),
+
+    # Temporal
+    "approval_date_range": dg.MetadataValue.text(f"{min_date} to {max_date}"),
+
+    # Statistics
+    "loan_amount_mean": dg.MetadataValue.float(float(df['amount'].mean())),
+
+    # Distributions (as markdown)
+    "top_10_states": dg.MetadataValue.md(
+        "\n".join([f"{i+1}. **{state}**: {count:,}"
+                   for i, (state, count) in enumerate(state_dist.items())])
+    ),
+
+    # Destination
+    "bigquery_table": dg.MetadataValue.text(table_id),
+})
+```
+
+Reference: [Dagster Metadata Documentation](https://docs.dagster.io/concepts/metadata-tags/asset-metadata)
 
 ## Common Commands
 
