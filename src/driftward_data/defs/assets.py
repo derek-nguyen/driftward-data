@@ -249,15 +249,19 @@ def raw_sba_foia_7a_loans(
             }
         )
 
-        # If AsOfDate column doesn't exist or is null, use filename date
+        # Parse AsOfDate first if it exists (before filling)
+        if 'AsOfDate' in df.columns:
+            df['AsOfDate'] = pd.to_datetime(df['AsOfDate'], format='%m/%d/%Y', errors='coerce')
+
+        # If AsOfDate column doesn't exist or has nulls, use filename date
         if as_of_from_filename is not None:
             if 'AsOfDate' not in df.columns:
                 df['AsOfDate'] = as_of_from_filename
                 context.log.info(f"  Added AsOfDate column from filename")
             else:
-                # Fill nulls with filename date
+                # Fill nulls with filename date (as Timestamp, not string)
                 null_count_before = df['AsOfDate'].isnull().sum()
-                df['AsOfDate'] = df['AsOfDate'].fillna(as_of_from_filename.strftime('%m/%d/%Y'))
+                df['AsOfDate'] = df['AsOfDate'].fillna(as_of_from_filename)
                 if null_count_before > 0:
                     context.log.info(f"  Filled {null_count_before:,} null AsOfDate values from filename")
 
@@ -279,8 +283,9 @@ def raw_sba_foia_7a_loans(
     combined_df = pd.concat(dataframes, ignore_index=True)
     context.log.info(f"Combined total: {len(combined_df):,} rows")
 
-    # Parse date columns (MM/DD/YYYY format)
-    date_columns = ['AsOfDate', 'ApprovalDate', 'FirstDisbursementDate', 'PaidinFullDate', 'ChargeoffDate']
+    # Parse remaining date columns (MM/DD/YYYY format)
+    # AsOfDate already parsed per-file before concatenation
+    date_columns = ['ApprovalDate', 'FirstDisbursementDate', 'PaidinFullDate', 'ChargeoffDate']
     for col in date_columns:
         combined_df[col] = pd.to_datetime(combined_df[col], format='%m/%d/%Y', errors='coerce')
 
