@@ -95,6 +95,60 @@ Resources are injected into assets by matching parameter names to resource keys.
 
 Reference: [Dagster Resources Documentation](https://docs.dagster.io/dagster-basics-tutorial/resources)
 
+### Using AssetExecutionContext
+
+The `AssetExecutionContext` provides runtime information and capabilities for your assets.
+
+**When to use it:**
+- You need logging (`context.log.info()`, `context.log.warning()`, etc.)
+- You want to add metadata to asset runs (`context.add_output_metadata()`)
+- You need runtime information (run ID, asset key, partition info)
+- You're implementing complex orchestration logic
+
+**When NOT to use it:**
+- Simple data transformations that don't need logging
+- Pure functions that only transform inputs to outputs
+- Assets that only need resource dependencies
+
+**Example with context:**
+```python
+import dagster as dg
+
+@dg.asset
+def sba_foia_raw(
+    context: dg.AssetExecutionContext,
+    gcs: GCSResource
+) -> dict:
+    """Downloads SBA FOIA data with logging and metadata."""
+    context.log.info(f"Starting download from {URL}")
+
+    # ... processing logic ...
+
+    context.add_output_metadata({
+        "total_files": len(files),
+        "total_size_bytes": total_size,
+    })
+
+    return metadata
+```
+
+**Example without context:**
+```python
+@dg.asset
+def simple_transform(bigquery: BigQueryResource) -> pd.DataFrame:
+    """Simple query - no logging needed."""
+    with bigquery.get_client() as client:
+        return client.query("SELECT * FROM table").to_dataframe()
+```
+
+**Common context properties:**
+- `context.run.run_id` - Unique identifier for this execution
+- `context.asset_key` - Key of the asset being materialized
+- `context.partition_key` - Partition being processed (if partitioned)
+- `context.log` - Logger instance for this run
+
+Reference: [AssetExecutionContext Documentation](https://docs.dagster.io/concepts/assets/software-defined-assets#assetexecutioncontext)
+
 ## Common Commands
 
 | Command | Description |
