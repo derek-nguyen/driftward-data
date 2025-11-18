@@ -120,23 +120,3 @@ def sba_foia_raw(
     )
 
     return metadata
-
-
-@dg.asset
-def sba_loans_sample(bigquery: BigQueryResource) -> pd.DataFrame:
-    """Sample of SBA 7a loans from BigQuery."""
-    query = """
-        SELECT *
-        FROM `learned-mind-476504-i3.sba_clean.loans_7a`
-        LIMIT 100
-    """
-
-    with bigquery.get_client() as client:
-        df = client.query(query).to_dataframe()
-
-    return df
-
-
-@dg.asset
-def test_asset(context: dg.AssetExecutionContext) -> None:
-    context.log.info(f"My run ID is {context.run.run_id}")

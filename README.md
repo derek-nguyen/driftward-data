@@ -1,16 +1,12 @@
-# driftward_data
+# Getting Started
 
-A Dagster project for SBA loan data pipelines with BigQuery integration.
-
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - Python 3.10-3.13
 - [uv](https://docs.astral.sh/uv/) package manager
 - Google Cloud credentials configured for BigQuery access
 
-### Installation
+## Installation
 
 1. Install `uv` following their [official documentation](https://docs.astral.sh/uv/getting-started/installation/)
 
@@ -33,7 +29,7 @@ uv sync
 dg check defs
 ```
 
-### Running Dagster
+## Running Dagster
 
 Start the Dagster UI web server:
 ```bash
