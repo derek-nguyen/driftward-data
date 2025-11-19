@@ -1,5 +1,5 @@
 import dagster as dg
-from .assets import sba_foia_raw
+from .assets.sba_foia_raw import sba_foia_raw
 
 
 # Quarterly schedule: 1st of Feb, May, Aug, Nov (1 month after quarter end)
